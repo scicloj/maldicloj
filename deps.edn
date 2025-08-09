@@ -1,0 +1,149 @@
+{:deps {org.scicloj/noj {:mvn/version "2-beta18"}
+        com.github.psambit9791/jdsp {:mvn/version "3.1.0"}
+        metosin/malli {:mvn/version "0.19.1"}}
+ :paths ["src" "notebooks"]
+ :aliases {;; nREPL server for AI to connect to
+           ;; Include all paths you want available for development
+           :nrepl {:extra-paths ["test"]
+                   :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
+	           ;; this allows nrepl to interrupt runaway repl evals
+                   :jvm-opts ["-Djdk.attach.allowAttachSelf"]
+                   :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}
+
+           ;; ========================================
+           ;; Test Running Aliases
+           ;; ========================================
+
+           ;; Run all tests
+           :test {:extra-paths ["test"]
+                  :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                  :main-opts ["-e" "(require 'maldi-clj.baseline-test) (clojure.test/run-tests 'maldi-clj.baseline-test)"]}
+
+           ;; Run all tests (alternative)
+           :test-all {:extra-paths ["test"]
+                      :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                      :main-opts ["-e" "(require 'clojure.test) (clojure.test/run-all-tests #\".*-test\")"]}
+
+           ;; Run specific test namespaces
+           :test-ns {:extra-paths ["test"]
+                     :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                     :main-opts ["-e" "(require 'clojure.test) (clojure.test/run-tests)"]} ; add namespace as needed
+
+           ;; Run baseline correction tests specifically
+           :test-baseline {:extra-paths ["test"]
+                           :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                           :main-opts ["-e" "(require 'maldi-clj.baseline-test) (clojure.test/run-tests 'maldi-clj.baseline-test)"]}
+
+           ;; Run smoothing tests specifically  
+           :test-smoothing {:extra-paths ["test"]
+                            :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                            :main-opts ["-e" "(require 'maldi-clj.smoothing-test) (clojure.test/run-tests 'maldi-clj.smoothing-test)"]}
+
+           ;; Run preprocessing tests specifically
+           :test-preprocessing {:extra-paths ["test"]
+                                :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                                :main-opts ["-e" "(require 'maldi-clj.preprocessing-test) (clojure.test/run-tests 'maldi-clj.preprocessing-test)"]}
+
+           ;; Run core API tests specifically
+           :test-core {:extra-paths ["test"]
+                       :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                       :main-opts ["-e" "(require 'maldi-clj.core-test) (clojure.test/run-tests 'maldi-clj.core-test)"]}
+
+           ;; Run original R comparison tests  
+           :test-r-comparison {:extra-paths ["test"]
+                               :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                               :main-opts ["-e" "(require 'maldi-clj.r-comparison-test) (clojure.test/run-tests 'maldi-clj.r-comparison-test)"]}
+
+           ;; Run comprehensive MALDIquant comparison tests
+           :test-maldiquant {:extra-paths ["test"]
+                             :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                             :main-opts ["-e" "(require 'maldi-clj.maldiquant-comparison-test) (clojure.test/run-tests 'maldi-clj.maldiquant-comparison-test)"]}
+
+           ;; Run detailed MALDIquant comparison tests
+           :test-detailed-maldiquant {:extra-paths ["test"]
+                                      :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                                      :main-opts ["-e" "(require 'maldi-clj.detailed-maldiquant-test) (clojure.test/run-tests 'maldi-clj.detailed-maldiquant-test)"]}
+
+           ;; Run comprehensive validation tests (edge cases, performance, property-based)
+           :test-comprehensive {:extra-paths ["test"]
+                                :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                                :main-opts ["-e" "(require 'maldi-clj.comprehensive-validation-test) (clojure.test/run-tests 'maldi-clj.comprehensive-validation-test)"]}
+
+           ;; Run tests with R comparison (requires R + MALDIquant)
+           :test-with-r {:extra-paths ["test"]
+                         :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                         :jvm-opts ["-Djdk.attach.allowAttachSelf"]
+                         :exec-fn clojure.test/run-all-tests
+                         :exec-args {}}
+
+           ;; ========================================
+           ;; Development and REPL Aliases
+           ;; ========================================
+
+           ;; Development REPL with all paths and test dependencies
+           :dev {:extra-paths ["test" "dev"]
+                 :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                              nrepl/nrepl {:mvn/version "1.3.1"}
+                              cider/cider-nrepl {:mvn/version "0.45.0"}}
+                 :jvm-opts ["-Djdk.attach.allowAttachSelf"]}
+
+           ;; Run performance benchmarks
+           :benchmark {:extra-paths ["test"]
+                       :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                                    criterium/criterium {:mvn/version "0.4.6"}}
+                       :main-opts ["-e" "(require '[maldi-clj.baseline-test :as bt]) (bt/benchmark-baseline-methods 1000)"]}
+
+           ;; ========================================
+           ;; Analysis and Documentation
+           ;; ========================================
+
+           ;; Generate documentation
+           :docs {:extra-deps {codox/codox {:mvn/version "0.10.8"}}
+                  :exec-fn codox.main/generate-docs
+                  :exec-args {:source-paths ["src"]
+                              :output-path "docs"
+                              :metadata {:doc/format :markdown}}}
+
+           ;; Check for outdated dependencies
+           :outdated {:extra-deps {com.github.liquidz/antq {:mvn/version "2.8.1185"}}
+                      :main-opts ["-m" "antq.core"]}
+
+           ;; Lint code with clj-kondo
+           :lint {:extra-deps {clj-kondo/clj-kondo {:mvn/version "2024.02.12"}}
+                  :main-opts ["-m" "clj-kondo.main" "--lint" "src" "test"]}
+
+           ;; ========================================
+           ;; Interactive Testing and Development
+           ;; ========================================
+
+           ;; Interactive baseline testing REPL
+           :baseline-repl {:extra-paths ["test"]
+                           :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                                        nrepl/nrepl {:mvn/version "1.3.1"}}
+                           :jvm-opts ["-Djdk.attach.allowAttachSelf"]
+                           :main-opts ["-e" "(do (require '[maldi-clj.baseline :as baseline] '[maldi-clj.baseline-test :as bt] '[maldi-clj.spectrum :as spectrum]) (println \"Baseline correction REPL ready!\") (clojure.main/repl))"]}
+
+           ;; Quick baseline demo
+           :demo-baseline {:extra-paths ["test"]
+                           :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                           :main-opts ["-m" "baseline-demo"]}
+
+           ;; ========================================
+           ;; CI/CD and Production
+           ;; ========================================
+
+           ;; Minimal test runner for CI (no R dependencies)
+           :test-ci {:extra-paths ["test"]
+                     :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                     :exec-fn clojure.test/run-all-tests
+                     :exec-args {}}
+
+           ;; Production build (AOT compilation if needed)
+           :build {:extra-deps {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
+                   :ns-default build}
+
+           ;; Uberjar creation
+           :uberjar {:extra-deps {io.github.clojure/tools.build {:git/tag "v0.9.6" :git/sha "8e78bcc"}}
+                     :exec-fn build/uberjar
+                     :exec-args {}}}}
+
