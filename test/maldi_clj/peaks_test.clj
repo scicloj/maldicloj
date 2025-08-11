@@ -1,4 +1,146 @@
 (ns maldi-clj.peaks-test
+  (:require [clojure.test :refer :all]
+            [maldi-clj.peaks :as peaks]))
+
+(deftest test-basic-peak-detection
+  (testing "Basic peak detection functionality"
+    (let [mz-values [100.0 101.0 102.0 103.0 104.0]
+          intensities [10.0 50.0 30.0 80.0 15.0]
+          peaks (peaks/detect-peaks mz-values intensities {:snr-threshold 2.0})]
+      
+      (is (not (empty? peaks)))
+      (is (every? #(contains? % :mz) peaks))
+      (is (every? #(contains? % :intensity) peaks))
+      (is (every? #(contains? % :index) peaks))
+      (is (every? #(contains? % :snr) peaks)))))
+
+(deftest test-optimization-consistency
+  (testing "Optimized vs standard implementation consistency"
+    (let [mz-values (vec (range 0 2000 0.1))
+          intensities (vec (repeatedly 20000 #(+ 10 (rand 1000))))
+          
+          standard-peaks (peaks/detect-peaks mz-values intensities 
+                                            {:use-optimizations? false
+                                             :snr-threshold 3.0})
+          optimized-peaks (peaks/detect-peaks mz-values intensities 
+                                             {:use-optimizations? true
+                                              :snr-threshold 3.0})]
+      
+      (is (= (count standard-peaks) (count optimized-peaks)))
+      (is (= (set (map :index standard-peaks)) 
+             (set (map :index optimized-peaks)))))))
+
+(deftest test-performance-benchmark
+  (testing "Performance benchmarking functionality"
+    (let [mz-values (vec (range 1000))
+          intensities (vec (repeatedly 1000 #(+ 10 (rand 1000))))
+          benchmark (peaks/benchmark-peak-detection mz-values intensities {})]
+      
+      (is (contains? benchmark :standard))
+      (is (contains? benchmark :optimized))
+      (is (contains? benchmark :speedup))
+      (is (pos? (:speedup benchmark)))
+      (is (pos? (get-in benchmark [:standard :time-ms])))
+      (is (pos? (get-in benchmark [:optimized :time-ms]))))))
+
+(deftest test-batch-processing
+  (testing "Batch peak detection"
+    (let [spectra-map {"spec1" {:mz [100 101 102 103 104]
+                               :intensities [10 50 30 80 15]}
+                       "spec2" {:mz [200 201 202 203 204] 
+                               :intensities [20 60 40 90 25]}}
+          results (peaks/detect-peaks-batch spectra-map {})]
+      
+      (is (= (set (keys results)) #{"spec1" "spec2"}))
+      (is (every? vector? (vals results)))
+      (is (every? #(every? map? %) (vals results))))))
+
+(deftest test-parallel-batch-processing
+  (testing "Parallel batch processing"
+    (let [large-spectra-map (into {} 
+                                  (for [i (range 150)]
+                                    [(str "spec" i) 
+                                     {:mz (vec (range 100))
+                                      :intensities (vec (repeatedly 100 #(rand 1000)))}]))
+          
+          sequential-results (peaks/detect-peaks-batch large-spectra-map 
+                                                      {:parallel? false})
+          parallel-results (peaks/detect-peaks-batch large-spectra-map 
+                                                    {:parallel? true
+                                                     :chunk-size 50})]
+      
+      (is (= (count sequential-results) (count parallel-results)))
+      (is (= (set (keys sequential-results)) (set (keys parallel-results)))))))
+
+(deftest test-centroiding
+  (testing "Peak centroiding functionality"
+    (let [mz-values [99.9 100.0 100.1 100.2]
+          intensities [30.0 100.0 80.0 20.0]
+          peaks [{:mz 100.0 :intensity 100.0 :index 1}]
+          centroided (peaks/centroid-peaks mz-values intensities peaks {})]
+      
+      (is (= (count centroided) 1))
+      (is (contains? (first centroided) :centroided))
+      (is (:centroided (first centroided)))
+      ;; Centroided m/z should be weighted average, so between 100.0 and 100.1
+      (is (and (>= (:mz (first centroided)) 100.0)
+               (<= (:mz (first centroided)) 100.1))))))
+
+(deftest test-memory-estimation
+  (testing "Memory usage estimation"
+    (let [estimation (peaks/estimate-memory-usage 10000)]
+      
+      (is (contains? estimation :base-mb))
+      (is (contains? estimation :temp-mb)) 
+      (is (contains? estimation :result-mb))
+      (is (contains? estimation :total-mb))
+      (is (pos? (:total-mb estimation))))))
+
+(deftest test-performance-profile  
+  (testing "Performance profiling across data sizes"
+    (let [profile (peaks/performance-profile :sizes [100 500])]
+      
+      (is (= (count profile) 2))
+      (is (every? #(contains? % :size) profile))
+      (is (every? #(contains? % :speedup) profile))
+      (is (= (map :size profile) [100 500])))))
+
+(deftest test-edge-cases
+  (testing "Edge cases and error handling"
+    
+    ;; Empty data
+    (is (empty? (peaks/detect-peaks [] [])))
+    
+    ;; Mismatched lengths
+    (is (thrown? Exception 
+                (peaks/detect-peaks [1 2 3] [1 2])))
+    
+    ;; Single data point
+    (let [peaks (peaks/detect-peaks [100.0] [50.0])]
+      (is (<= (count peaks) 1)))
+    
+    ;; All zeros
+    (let [peaks (peaks/detect-peaks [100 101 102] [0 0 0])]
+      (is (empty? peaks)))))
+
+(deftest test-filtering
+  (testing "Peak filtering functionality"
+    (let [peaks [{:mz 100.0 :intensity 50.0 :snr 2.5}
+                 {:mz 101.0 :intensity 100.0 :snr 5.0}
+                 {:mz 102.0 :intensity 25.0 :snr 1.5}]
+          
+          filtered-snr (peaks/filter-peaks peaks {:min-snr 3.0})
+          filtered-intensity (peaks/filter-peaks peaks {:intensity-threshold 40.0})
+          filtered-count (peaks/filter-peaks peaks {:max-peaks 2})]
+      
+      (is (= (count filtered-snr) 1))
+      (is (= (:mz (first filtered-snr)) 101.0))
+      
+      (is (= (count filtered-intensity) 2))
+      
+      (is (<= (count filtered-count) 2)))))
+
+(run-tests)(ns maldi-clj.peaks-test
   "Tests for peak detection algorithms"
   (:require [clojure.test :refer [deftest is testing]]
             [maldi-clj.peaks :as peaks]

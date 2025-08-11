@@ -15,16 +15,17 @@
 ;; =============================================================================
 
 (defn create-test-data
-  "Create test m/z and intensity data."
-  [n-points & {:keys [with-peaks? baseline noise-level]
-               :or {with-peaks? true baseline 50.0 noise-level 5.0}}]
-  (let [mz-values (vec (range 1000.0 (+ 1000.0 n-points) 1.0))
+  "Create test m/z and intensity data with clinically relevant mass ranges."
+  [n-points & {:keys [with-peaks? baseline noise-level mass-range-start]
+               :or {with-peaks? true baseline 50.0 noise-level 5.0 mass-range-start 2000.0}}]
+  (let [mz-values (vec (range mass-range-start (+ mass-range-start n-points) 1.0))
         intensities (mapv (fn [mz]
                             (+ baseline
                                (if with-peaks?
-                                 (+ (* 100 (Math/exp (- (/ (Math/pow (- mz 1200) 2) 10000))))
-                                    (* 80 (Math/exp (- (/ (Math/pow (- mz 1500) 2) 8000))))
-                                    (* 60 (Math/exp (- (/ (Math/pow (- mz 1800) 2) 12000)))))
+                                 ;; Create peaks at clinically relevant masses
+                                 (+ (* 100 (Math/exp (- (/ (Math/pow (- mz (+ mass-range-start 200)) 2) 10000))))
+                                    (* 80 (Math/exp (- (/ (Math/pow (- mz (+ mass-range-start 500)) 2) 8000))))
+                                    (* 60 (Math/exp (- (/ (Math/pow (- mz (+ mass-range-start 800)) 2) 12000)))))
                                  0.0)
                                (* noise-level (- (rand) 0.5))))
                           mz-values)]
@@ -122,7 +123,7 @@
       (is (< (Math/abs (- (dfn/sum (:intensities processed)) 1.0)) 0.01))))
 
   (testing "Custom clinical preprocessing parameters"
-    (let [[mz-vals intensities] (create-test-data 500)
+    (let [[mz-vals intensities] (create-test-data 600 :mass-range-start 1200.0)
           spectrum (core/create-spectrum "clinical-002" mz-vals intensities {})
           processed (core/clinical-preprocess spectrum
                                               :trim-range [1200 1800]
@@ -209,7 +210,7 @@
 
   (testing "Peak detection on flat spectrum"
     (let [flat-intensities (repeat 100 50.0)
-          spectrum (core/create-spectrum "flat" (range 1000 1100) flat-intensities {})
+          spectrum (core/create-spectrum "flat" (range 2000 2100) flat-intensities {})
           peaks (core/detect-peaks spectrum)]
       ;; Should find few or no peaks in flat spectrum
       (is (<= (count peaks) 5)))))
